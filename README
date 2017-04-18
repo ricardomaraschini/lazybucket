@@ -1,0 +1,17 @@
+This is implementation of kinda leaky bucket.
+Every function that needs to be controlled must
+be first registered through RegisterFunction, once
+the function is registered a go routine is dispatched.
+This go routine is called feeder and its porpose is to
+reset the counter for every registered function when
+its time window is exhausted. We do not actually call
+any external function here, we only control if they
+can or can not be called using the IsAbleToCall
+function.
+
+The steps to use this package is: 1) get a new bucket
+through GetBucket. 2) register a function within the
+bucket suplying the max number of calls and also the
+time window in seconds. 3) before every call to a
+registered function you must check if you are able or
+not by calling IsAbleToCall(). 4) at the end, unregister
