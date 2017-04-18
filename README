@@ -1,17 +1,108 @@
-This is implementation of kinda leaky bucket.
+This is kinda leaky bucket implementation.
 Every function that needs to be controlled must
 be first registered through RegisterFunction, once
 the function is registered a go routine is dispatched.
-This go routine is called feeder and its porpose is to
+This go routine is called "feeder" and its porpose is to
 reset the counter for every registered function when
-its time window is exhausted. We do not actually call
-any external function here, we only control if they
-can or can not be called using the IsAbleToCall
-function.
+its time window has exhausted. We do not actually call
+any external function on the library, we only control
+if they can or can not be called using the IsAbleToCall
+function. This way this libray may be used to control
+any function that needs throttling.
 
-The steps to use this package is: 1) get a new bucket
-through GetBucket. 2) register a function within the
-bucket suplying the max number of calls and also the
-time window in seconds. 3) before every call to a
-registered function you must check if you are able or
-not by calling IsAbleToCall(). 4) at the end, unregister
+The steps to use this package is: 
+
+1) get a new bucket through a GetBucket call.
+2) register one or more functions within the bucket 
+   suplying the max number of calls and also the
+   time window in seconds. 
+3) before every call to a registered function you 
+   should check if you are allowed or not by calling 
+   IsAbleToCall(). 
+4) at the end, unregister the functions
+
+
+GETTING THE CODE AND RUNNING THE TESTS
+
+$ mkdir test
+$ cd test
+$ export GOPATH=`pwd`
+$ go get github.com/ricardomaraschini/lazybucket
+$ go get github.com/stretchr/testify/assert
+$ go test -v github.com/ricardomaraschini/lazybucket
+
+
+A SAMPLE PROGRAM THAT USES THE LIBRARY:
+
+package main
+
+import (
+	"log"
+	"time"
+
+	"github.com/ricardomaraschini/lazybucket"
+)
+
+var globalBucket lazybucket.Bucket
+
+func myFunc() {
+	// place holder function, we gonna register
+	// this function and try to call it
+}
+
+// verify if ten calls to myFunc are possible
+// using globalBucket
+func doTenCalls() {
+	var able bool
+	var err error
+	var i int
+
+	// do 10 calls showing the result
+	for i = 0; i < 10; i++ {
+		able, err = globalBucket.IsAbleToCall(myFunc)
+		if err != nil {
+			log.Fatal(err)
+			return
+		}
+
+		log.Print(able)
+		time.Sleep(time.Millisecond)
+	}
+}
+
+func main() {
+	var err error
+	var able bool
+
+	// creates a global bucket
+	globalBucket = lazybucket.GetBucket()
+
+	// myFunc may be called 10 times in one second
+	globalBucket.RegisterFunction(myFunc, 10, 1)
+
+	doTenCalls()
+
+	// now we have exhausted all calls for this second,
+	// the next call must return false
+	able, err = globalBucket.IsAbleToCall(myFunc)
+	if err != nil {
+		log.Fatal(err)
+		return
+	}
+	log.Print(able)
+
+	// waits for 1 seconds, after that we are supposed
+	// to be able to issue 10 more calls
+	time.Sleep(time.Second)
+
+	doTenCalls()
+
+	// now we have exhausted again, the next call must
+	// return false
+	able, err = globalBucket.IsAbleToCall(myFunc)
+	if err != nil {
+		log.Fatal(err)
+		return
+	}
+	log.Print(able)
+}
