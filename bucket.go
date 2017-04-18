@@ -99,6 +99,9 @@ func (bucket *Bucket) doFeed(fnaddr uintptr, rate, twindow uint64) {
 	}
 }
 
+// UnregisterFunction removes fn function from the throttling
+// control. All go routines will eventually stops once we
+// unregister their functions
 func (bucket *Bucket) UnregisterFunction(fn interface{}) {
 	var fnaddr uintptr
 	var exists bool
